@@ -5,6 +5,7 @@ require_once(CORE_PATH . DS . 'lumberjack.php');
 class Route {
 	protected $httpMethod = '';
 	protected $method = NULL;
+	protected $class = NULL;
 	protected $pattern = '';
 	protected $parameters = array();
 	protected $arguments = array();
@@ -14,7 +15,8 @@ class Route {
 			$this->parseAnnotations($annotations);
 		}
 		if($method !== NULL) {
-			$this->method = $method;
+			$this->method = $method->getName();
+			$this->class = $method->getDeclaringClass()->getName();
 		}
 	}
 	
@@ -37,25 +39,29 @@ class Route {
 			$uri = trim($uri);
 			$uri = (stripos($uri, '/') == 0) ? substr($uri, 1): $uri;
 			$uri = explode('/', $uri);
-			for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
-				$label = $this->pattern[$i];
-				$pattern = '';
-				if(substr($label, 0, 1) === ':') {
-					$label = substr($label, 1);
-					$pattern = isset($this->parameters[$label]) ? $this->parameters[$label] : "";
-					if(strlen($pattern) > 0 && 
-					stripos($pattern, '/') != 0 && 
-					strripos($pattern, '/') != (strlen($pattern) - 1)){
-						$pattern = '/'. $pattern . '/i';
+			if(count($uri) == count($this->pattern)) {
+				for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
+					$label = $this->pattern[$i];
+					$pattern = '';
+					if(substr($label, 0, 1) == ':') {
+						$label = substr($label, 1);
+						$pattern = isset($this->parameters[$label]) ? $this->parameters[$label] : "";
+						if(strlen($pattern) > 0 && 
+						stripos($pattern, '/') !== 0 && 
+						strripos($pattern, '/') !== (strlen($pattern) - 1)){
+							$pattern = '/'. $pattern . '/i';
+						}
+					}
+					if(strlen($pattern) == 0 || preg_match($pattern, $uri[$i])) {
+						if(strlen($pattern) > 0) {
+							$this->arguments[$label] = $uri[$i];
+						}
+					} else {
+						return FALSE;
 					}
 				}
-				if(strlen($pattern) == 0 || preg_match($pattern, $uri[$i])) {
-					if(strlen($pattern) > 0) {
-						$this->arguments[$label] = $uri[$i];
-					}
-				} else {
-					return FALSE;
-				}
+			} else {
+				return FALSE;
 			} 
 		}
 		return TRUE;
@@ -86,6 +92,10 @@ class Route {
 	public function getMethod() {
 		return $this->method;
 	}
+
+	public function getClass() {
+		return $this->class;
+	}
 	
 	private function getPattern() {
 		return $this->pattern;
@@ -107,14 +117,16 @@ class RouteFactory {
 	
 	public static function getRoutesFromFile($filename) {
 		$routes = array();
-		@include_once(APP_DIR . DS . $filename);
+		@include_once(APP_PATH . DS . $filename);
 		$className = rtrim($filename, '.php');
 		$clz = new ReflectionClass($className);
 		$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 
 		foreach($methods as $method) {
 			$annotations = AnnotationReader::MethodAnnotations($method);
-			$route = new Route($annotations, $method);
-			$routes[] = $route;
+			if($annotations != NULL) {
+				$route = new Route($annotations, $method);
+				$routes[] = $route;
+			}
 		}
 		return $routes;
 	}
@@ -124,11 +136,8 @@ class RouteRegistry {
 	
 	private $buildDate = NULL;
 	private $routes = array();
-	private $logger = NULL;
 	
 	public function __construct() { 
-		$logger = LumberJack::instance(new BasicOutput());
-		$logger->setReportingLevel(LumberJack::DEBUG);
 	}
 
 	public function addRoute(Route $route) {
@@ -153,33 +162,32 @@ class RouteRegistry {
 	
 	public static function store($registry) {
 		$serialized = serialize($registry);
+		$route_store = APP_PATH . DS . 'route.store';
 		
-		/**
-		*
-		if (flock($fp, LOCK_EX)) {
-		    fwrite($fp, "Write something here\n");
-		    flock($fp, LOCK_UN); // release the lock
-		*
-		*/
-		
-		if (is_writable(APP_DIR . DS . 'route.store') == FALSE) {
-			if (!@chmod(APP_DIR . DS . 'route.store', 0666)){ // todo: catch exception
-					$this->logger->log('An error has occured: route.store does not appear writable');
-				
+		if(is_file($route_store) == FALSE) {
+			$file = fopen($route_store, 'w');
+			if($file == FALSE) {
+				LumberJack::instance()->log('An error has occured: route.store could not be created.');
 				return FALSE; 
 			}
 		}
 		
-		if(!@file_put_contents(APP_DIR . DS . 'route.store', $serialized)) {
-			$this->logger->log('An error has occured: file_put_contents failed with file route.store';
-			
+		if (is_writable($route_store) == FALSE) {
+			if (!@chmod($route_store, 0666)){ // todo: catch exception
+				LumberJack::instance()->log('An error has occured: route.store does not appear writable.');
+				return FALSE; 
+			}
+		}
+		
+		if(!@file_put_contents($route_store, $serialized)) {
+			LumberJack::instance()->log('An error has occured: file_put_contents failed with file route.store.');
 			return FALSE;
 		}
 		return TRUE;
 	}
 	
 	public static function retrieve() {
-		$serialized = file_exists(APP_DIR . DS . 'route.store') ? file_get_contents('route.store') : FALSE;
+		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents('route.store') : FALSE;
 		if($serialized !== FALSE) {
 			$registry = unserialize($serialized);
 			if($registry->isCurrent() == false) {
@@ -187,7 +195,7 @@ class RouteRegistry {
 				RouteRegistry::store($registry);
 			}
 		} else {
-			$this->logger->log('No route.store found, attempting to build registry', LumberJack::DEBUG);
+			LumberJack::instance()->log('No route.store found, attempting to build registry', LumberJack::DEBUG);
 			
 			$registry = new RouteRegistry();
 			$registry->buildRegistry();
@@ -197,11 +205,11 @@ class RouteRegistry {
 	}
 	
 	private function isCurrent() {
-		foreach (glob(APP_DIR . DS . '*.php') as $filename) {
-			$filename = substr($filename, 2);
+		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
+			$filename = substr($filename, strripos($filename, DS) + 1);
 			if($filename == 'index.php')
 				continue;
-		    $modified = filemtime($filename);
+		  $modified = filemtime($filename);
 			if($modified > $this->buildDate) {
 				return false;
 			}
@@ -210,8 +218,8 @@ class RouteRegistry {
 	}
 	
 	public function buildRegistry() {	
-		foreach (glob(APP_DIR . DS . '*.php') as $filename) {
-			$filename = substr($filename, 2);
+		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
+			$filename = substr($filename, strripos($filename, DS) + 1);
 			if($filename == 'index.php')
 				continue;
 			$routes = RouteFactory::getRoutesFromFile($filename);
@@ -251,11 +259,12 @@ class Dispatcher {
 		$route = $this->route;
 		if($route != NULL) {
 			$method = $route->getMethod();
-			$clz = $method->getDeclaringClass();
+			$clz = $route->getClass();
 			$args = $route->getArguments();
-		
-			$filename = $clz->getName() . '.php';
-			if (@include_once(APP_DIR . DS . $filename)) {
+			$filename = $clz . '.php';
+			if (@include_once(APP_PATH . DS . $filename)) {
+				$clz = new ReflectionClass($clz);
+				$method = $clz->getMethod($method);
 				$instance = $clz->newInstance();
 				$method->invokeArgs($instance, $args);
 			} else {

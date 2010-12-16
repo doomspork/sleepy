@@ -54,7 +54,7 @@ class RouteAnnotation extends BaseAnnotation {
 }
 
 class LabelAnnotation extends BaseAnnotation {
-	public static $match = '/\+[ a-zA-Z]+/i';
+	public static $match = '/[ a-z]+/i';
 	function __construct($label, $pattern) {
 		$label = trim(str_replace('+', '', $label));
 		parent::__construct($label, $pattern);
@@ -96,7 +96,6 @@ class AnnotationGroup implements Iterator {
     }
 
     public function rewind() {
-        //var_dump(__METHOD__);
         $this->position = 0;
     }
 
@@ -131,7 +130,11 @@ class AnnotationGroup implements Iterator {
 class AnnotationReader {
 	
 	private static function ParseDocComments($doc_comment) {
-		//var_dump(__METHOD__);
+		
+		if(empty($doc_comment)) {
+			return NULL;
+		}
+		
 		$comments = explode("\n", $doc_comment);
 		
 		$annotations = new AnnotationGroup();
@@ -154,7 +157,6 @@ class AnnotationReader {
 	}
 	
 	private static function ParseLine($doc_line, &$annotations) {
-		//var_dump(__METHOD__);
 		$index = stripos($doc_line, ":");
 		$name = substr($doc_line, 0, $index);
 		$value = substr($doc_line, $index + 1);
@@ -166,7 +168,6 @@ class AnnotationReader {
 	}
 	
 	public static function MethodAnnotations(ReflectionMethod $method) {
-		//var_dump(__METHOD__);		
 		$annotations = AnnotationReader::ParseDocComments($method->getDocComment());
 		return $annotations;
 	}
