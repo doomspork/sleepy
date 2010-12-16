@@ -1,6 +1,1 @@
 sleepy - "Helping you get a RESTful sleep" (It ain't easy - being cheesy)
-
-Nothing serious here, fun attempt at a microframework in PHP.  I shall elaborate more as the framework progresses.
-
-The idea has been to create something similar to Sinatra (http://sinatrarb.com) for PHP.  It's more of an experiment
-to see what I would do rather than a product for wide consumption (not to say you couldn't use it).
