@@ -34,26 +34,31 @@ class Route {
 		}
 	}
 	
+	/*
+	* TODO:  I want to step back and rethink this match method.  It's pretty crazy and I'm certain there is
+	*	a more elegant approach
+	*/
 	public function matches($httpMethod, $uri) {
 		if($this->httpMethod == $httpMethod) {
 			$uri = trim($uri);
-			$uri = (stripos($uri, '/') == 0) ? substr($uri, 1): $uri;
+			$uri = (stripos($uri, '/') == 0) ? substr($uri, 1) : $uri;
 			$uri = explode('/', $uri);
 			if(count($uri) == count($this->pattern)) {
 				for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
-					$label = $this->pattern[$i];
-					$pattern = '';
+					$argument = FALSE;
+					$label = $pattern = $this->pattern[$i];
 					if(substr($label, 0, 1) == ':') {
+						$argument = TRUE;
 						$label = substr($label, 1);
 						$pattern = isset($this->parameters[$label]) ? $this->parameters[$label] : "";
-						if(strlen($pattern) > 0 && 
-						stripos($pattern, '/') !== 0 && 
-						strripos($pattern, '/') !== (strlen($pattern) - 1)){
-							$pattern = '/'. $pattern . '/i';
-						}
 					}
-					if(strlen($pattern) == 0 || preg_match($pattern, $uri[$i])) {
-						if(strlen($pattern) > 0) {
+					
+					if(preg_match("/\/[a-z]*\//i", $pattern) == FALSE) {
+						$pattern = '/'. $pattern . '/i';
+					}
+					
+					if(preg_match($pattern, $uri[$i])) {
+						if($argument) {
 							$this->arguments[$label] = $uri[$i];
 						}
 					} else {
@@ -170,6 +175,7 @@ class RouteRegistry {
 				LumberJack::instance()->log('An error has occured: route.store could not be created.');
 				return FALSE; 
 			}
+			fclose($file);
 		}
 		
 		if (is_writable($route_store) == FALSE) {
@@ -196,7 +202,6 @@ class RouteRegistry {
 			}
 		} else {
 			LumberJack::instance()->log('No route.store found, attempting to build registry', LumberJack::DEBUG);
-			
 			$registry = new RouteRegistry();
 			$registry->buildRegistry();
 			RouteRegistry::store($registry);
@@ -211,10 +216,10 @@ class RouteRegistry {
 				continue;
 		  $modified = filemtime($filename);
 			if($modified > $this->buildDate) {
-				return false;
+				return FALSE;
 			}
 		}
-		return true;
+		return TRUE;
 	}
 	
 	public function buildRegistry() {	
