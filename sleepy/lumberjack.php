@@ -87,8 +87,8 @@ class BasicOutput implements LoggingAdapter {
 		$class = strtolower(get_class($message));
 		$file = $message->getFile();
 		$line = $message->getLine();
-		$error = $message->getMessage();
-		$output = "<div class='$class'>$file:$line - $error</div>";
+		$message = $message->getMessage();
+		$output = "<div class='$class'>$file:$line - $message</div>";
 		echo $output;
 	}
 	

@@ -179,7 +179,7 @@ class RouteRegistry {
 		}
 		
 		if (is_writable($route_store) == FALSE) {
-			if (!@chmod($route_store, 0666)){ // todo: catch exception
+			if (!@chmod($route_store, 0666)){ // TODO catch exception
 				LumberJack::instance()->log('An error has occured: route.store does not appear writable.');
 				return FALSE; 
 			}
@@ -196,7 +196,7 @@ class RouteRegistry {
 		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents('route.store') : FALSE;
 		if($serialized !== FALSE) {
 			$registry = unserialize($serialized);
-			if($registry->isCurrent() == false) {
+			if($registry->isCurrent() == FALSE) {
 				$registry->buildRegistry();
 				RouteRegistry::store($registry);
 			}
