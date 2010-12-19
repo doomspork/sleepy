@@ -41,7 +41,7 @@ class Route {
 	public function matches($httpMethod, $uri) {
 		if($this->httpMethod == $httpMethod) {
 			$uri = trim($uri);
-			$uri = (stripos($uri, '/') == 0) ? substr($uri, 1) : $uri;
+			$uri = (stripos($uri, '/') === 0) ? substr($uri, 1) : $uri;
 			$uri = explode('/', $uri);
 			if(count($uri) == count($this->pattern)) {
 				for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
@@ -53,11 +53,11 @@ class Route {
 						$pattern = isset($this->parameters[$label]) ? $this->parameters[$label] : "";
 					}
 					
-					if(preg_match("/\/[a-z]*\//i", $pattern) == FALSE) {
+					if(preg_match("/\/[a-z]+\//i", $pattern) == FALSE) {
 						$pattern = '/'. $pattern . '/i';
 					}
 					
-					if(preg_match($pattern, $uri[$i])) {
+					if($pattern != '//i' && preg_match($pattern, $uri[$i])) {
 						if($argument) {
 							$this->arguments[$label] = $uri[$i];
 						}
