@@ -137,6 +137,14 @@ class RouteFactory {
 	}
 }
 
+
+interface RouteStorage {
+	public function write();
+	public function retrieve();
+	public function expire();
+}
+
+
 class RouteRegistry {
 	
 	private $buildDate = NULL;
