@@ -139,11 +139,29 @@ class RouteFactory {
 
 
 interface RouteStorage {
-	public function write();
-	public function retrieve();
+	public function put(Route $route);
+	public function exists($path);
+	public function get($path);
 	public function expire();
 }
 
+class FlatFileStorage implements RouteStorage {
+	public function put(Route $route) {
+		
+	}
+	
+	public function exists($path) {
+		
+	}
+	
+	public function get($path) {
+		
+	}
+	
+	public function expire() {
+		
+	}
+}
 
 class RouteRegistry {
 	
