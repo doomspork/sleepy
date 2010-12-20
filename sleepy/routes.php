@@ -34,42 +34,24 @@ class Route {
 		}
 	}
 	
-	/*
-	* TODO:  I want to step back and rethink this match method.  It's pretty crazy and I'm certain there is
-	*	a more elegant approach
-	*/
 	public function matches($httpMethod, $uri) {
 		if($this->httpMethod == $httpMethod) {
-			$uri = trim($uri);
-			$uri = (stripos($uri, '/') === 0) ? substr($uri, 1) : $uri;
-			$uri = explode('/', $uri);
-			if(count($uri) == count($this->pattern)) {
-				for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
-					$argument = FALSE;
-					$label = $pattern = $this->pattern[$i];
-					if(substr($label, 0, 1) == ':') {
-						$argument = TRUE;
-						$label = substr($label, 1);
-						$pattern = isset($this->parameters[$label]) ? $this->parameters[$label] : "";
-					}
-					
-					if(preg_match("/\/[a-z]+\//i", $pattern) == FALSE) {
-						$pattern = '/'. $pattern . '/i';
-					}
-					
-					if($pattern != '//i' && preg_match($pattern, $uri[$i])) {
-						if($argument) {
-							$this->arguments[$label] = $uri[$i];
-						}
-					} else {
-						return FALSE;
-					}
+			foreach($this->parameters as $key => $value) {
+				$index = stripos($this->pattern, $key) - 1;
+				$length = strlen($key) + 1;
+				$args[$index] = $length;
+				$this->pattern = substr_replace($this->pattern, $value, $index, $length);
+			}
+			$this->pattern = str_replace('/', '\/', $this->pattern);
+			$result = preg_match('/^' . $this->pattern . '$/i', $uri);
+			if($result && isset($args)) {
+				foreach($args as $index => $length) {
+					$this->arguments[] = substr($uri, $index, $length);
 				}
-			} else {
-				return FALSE;
-			} 
+			}
+			return $result;
 		}
-		return TRUE;
+		return FALSE;
 	}
 	
 	public function setHttpMethod($httpMethod) {
@@ -82,8 +64,8 @@ class Route {
 	
 	public function setPattern($pattern) {
 		$pattern = trim($pattern);
-		$pattern = (stripos($pattern, '/') == 0) ? substr($pattern, 1) : $pattern;
-		$this->pattern = explode('/', $pattern);
+		//$pattern = (stripos($pattern, '/') == 0) ? substr($pattern, 1) : $pattern;
+		$this->pattern = $pattern; //explode('/', $pattern);
 	}
 	
 	public function setParameters($parameters) {
@@ -217,7 +199,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	private function load() {
-		$serialized = file_exists(self::FILE_PATH) ? file_get_contents('route.store') : FALSE;
+		$serialized = file_exists(self::FILE_PATH) ? file_get_contents(self::FILE_PATH) : FALSE;
 		if($serialized !== FALSE) {
 			$this->routes = unserialize($serialized);
 		} 
@@ -283,6 +265,7 @@ class RouteRegistry {
 				$this->put($route);
 			}
 		}
+		$this->buildDate = time();
 	}
 }
 
@@ -300,11 +283,7 @@ class Dispatcher {
 	}
 	
 	private function getUrl() {
-		if (isset($_GET['url']) == FALSE || empty($_GET['url']) == TRUE){
-			$_GET['url'] = '/';
-		}
-	
-		return $_GET['url'];
+		return '/' . $_GET['url'];
 	}
 	
 	private function getHttpMethod() {
