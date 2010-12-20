@@ -35,6 +35,7 @@ class Route {
 	}
 	
 	public function matches($httpMethod, $uri) {
+		LumberJack::instance()->log('Attempting match for URI' . $uri, LumberJack::DEBUG);
 		if($this->httpMethod == $httpMethod) {
 			foreach($this->parameters as $key => $value) {
 				$index = stripos($this->pattern, $key) - 1;
@@ -42,8 +43,7 @@ class Route {
 				$args[] = $index;
 				$this->pattern = substr_replace($this->pattern, $value, $index, $length);
 			}
-			$this->pattern = str_replace('/', '\/', $this->pattern);
-			$result = preg_match('/^' . $this->pattern . '\/?$/i', $uri);
+			$result = preg_match('@^' . $this->pattern . "/?$@i", $uri);
 			if($result && isset($args)) {
 				foreach($args as $index) {
 					$str = substr($uri, $index);
@@ -85,11 +85,11 @@ class Route {
 		return $this->class;
 	}
 	
-	private function getPattern() {
+	public function getPattern() {
 		return $this->pattern;
 	}
 	
-	private function getParameters() {
+	public function getParameters() {
 		return $this->parameters;
 	}
 	
@@ -120,7 +120,12 @@ class RouteFactory {
 	}
 }
 
-
+/**
+* Interface RouteStorage
+*
+* Defines the interface to be implemented by mechanisms used to store route information (memcache, flat file, ...)
+*
+*/
 interface RouteStorage {
 	public function put(Route $route);
 	public function exists($path);
@@ -130,15 +135,24 @@ interface RouteStorage {
 }
 
 class FlatFileStorage implements RouteStorage {
-	const FILE_PATH = APP_PATH . DS . 'route.store';
+	private $file_path;
 	private $routes = array();
+	private $registry = NULL;
 	
 	public function __construct() {
+		$this->file_path = APP_PATH . DS . 'route.store';
 		$this->load();
 	}
 	
 	function __destruct() {
-  	$this->write();
+		if($this->registry->isCurrent() == FALSE) {
+			LumberJack::instance()->log('Writing to route storage.', LumberJack::DEBUG);
+  		$this->write();
+		}
+	}
+	
+	public function setRegistry(RouteRegistry $registry) {
+		$this->registry = $registry;
 	}
 	
 	public function put(Route $route) {
@@ -158,50 +172,57 @@ class FlatFileStorage implements RouteStorage {
 	public function get($path) {
 		$args = explode('@', $path);
 		$group = $this->routes[$args[0]];
-		foreach($group as $route) {
-			if($route->matches($args[0], $args[1])){
-				return $route;
+		if(empty($group) == FALSE) {
+			foreach($group as $route) {
+				if($route->matches($args[0], $args[1])){
+					return $route;
+				}
 			}
 		}
 		return NULL;
 	}
 	
 	public function expire() {
-		$resource = @fopen(self::FILE_PATH, 'w');
+		$resource = @fopen($this->file_path, 'w');
 		if($resource) {
 			fclose($resource);
 		}
 	}
 	
 	public function last_modified() {
-		return filemtime(self::FILE_PATH);
+		if (file_exists($filename)) {
+			return filemtime($this->file_path);
+		} 
+		return 0;
 	}
 
 	private function write() {
 		$serialized = serialize($this->routes);
 		
-		if(is_file(self::FILE_PATH) == FALSE) {
-			$file = fopen(self::FILE_PATH, 'w');
+		if(is_file($this->file_path) == FALSE) {
+			$file = fopen($this->file_path, 'w');
 			if($file == FALSE) {
-				LumberJack::instance()->log('An error has occured: route.store could not be created.');
+				LumberJack::instance()->log('An error has occured: route.store could not be created.', LumberJack::ERROR);
+				return;
 			}
 			fclose($file);
 		}
 		
-		if (is_writable(self::FILE_PATH) == FALSE) {
-			if (!@chmod(self::FILE_PATH, 0666)){ // TODO catch exception
+		if (is_writable($this->file_path) == FALSE) {
+			if (!@chmod($this->file_path, 0666)){ // TODO catch exception
 				LumberJack::instance()->log('An error has occured: route.store does not appear writable.');
+				return;
 			}
 		}
 		
-		if(!@file_put_contents(self::FILE_PATH, $serialized)) {
+		if(!@file_put_contents($this->file_path, $serialized)) {
 			LumberJack::instance()->log('An error has occured: file_put_contents failed with file route.store.');
 		}
 	}
 	
 	private function load() {
-		$serialized = file_exists(self::FILE_PATH) ? file_get_contents(self::FILE_PATH) : FALSE;
-		if($serialized !== FALSE) {
+		$serialized = file_exists($this->file_path) ? file_get_contents($this->file_path) : FALSE;
+		if($serialized != FALSE) {
 			$this->routes = unserialize($serialized);
 		} 
 	}
@@ -214,7 +235,11 @@ class RouteRegistry {
 	private static $instance = NULL;
 	
 	private function __construct(RouteStorage $storage) {
-		$this->storage = $storage; 
+		$this->storage = $storage;
+		$this->storage->setRegistry($this);
+		if($this->isCurrent() == FALSE) {
+			$this->buildRegistry();
+		}
 	}
 
 	public static function instance(RouteStorage $storage = NULL) {
@@ -226,6 +251,7 @@ class RouteRegistry {
 	
 	//addRoute
 	public function put(Route $route) {
+		LumberJack::instance()->log("Put: " . $route->getPattern(), LumberJack::DEBUG);
 		$this->storage->put($route);
 	}
 	
@@ -242,10 +268,10 @@ class RouteRegistry {
 		$this->storage->expire();
 	}
 	
-	private function isCurrent() {
+	public function isCurrent() {
 		$last_modified = $this->storage->last_modified();
 		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
-			$filename = substr($filename, strripos($filename, DS) + 1);
+			$filename = substr(strrchr($filename, DS), 1);
 			if($filename == 'index.php')
 				continue;
 		  $modified = filemtime($filename);
@@ -256,9 +282,9 @@ class RouteRegistry {
 		return TRUE;
 	}
 	
-	public function buildRegistry() {	
+	private function buildRegistry() {	
 		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
-			$filename = substr($filename, strripos($filename, DS) + 1);
+			$filename = substr(strrchr($filename, DS), 1);
 			if($filename == 'index.php')
 				continue;
 			$routes = RouteFactory::getRoutesFromFile($filename);
@@ -276,7 +302,7 @@ class Dispatcher {
 	private $route = null;
 	
 	public function __construct() {
-		$this->registry = RouteRegistry::retrieve();
+		$this->registry = RouteRegistry::instance();
 		
 		$url = $this->getUrl();
 		$httpMethod = $this->getHttpMethod();
