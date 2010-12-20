@@ -39,14 +39,15 @@ class Route {
 			foreach($this->parameters as $key => $value) {
 				$index = stripos($this->pattern, $key) - 1;
 				$length = strlen($key) + 1;
-				$args[$index] = $length;
+				$args[] = $index;
 				$this->pattern = substr_replace($this->pattern, $value, $index, $length);
 			}
 			$this->pattern = str_replace('/', '\/', $this->pattern);
-			$result = preg_match('/^' . $this->pattern . '$/i', $uri);
+			$result = preg_match('/^' . $this->pattern . '\/?$/i', $uri);
 			if($result && isset($args)) {
-				foreach($args as $index => $length) {
-					$this->arguments[] = substr($uri, $index, $length);
+				foreach($args as $index) {
+					$str = substr($uri, $index);
+					$this->arguments[] = (substr($str, -1) == '/') ? substr(strrev(strstr(strrev($str), strrev('/'))), 0, - strlen('/')) : $str;
 				}
 			}
 			return $result;
