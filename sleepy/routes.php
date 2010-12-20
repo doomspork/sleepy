@@ -143,105 +143,130 @@ interface RouteStorage {
 	public function exists($path);
 	public function get($path);
 	public function expire();
+	public function last_modified();
 }
 
 class FlatFileStorage implements RouteStorage {
-	public function put(Route $route) {
-		
-	}
-	
-	public function exists($path) {
-		
-	}
-	
-	public function get($path) {
-		
-	}
-	
-	public function expire() {
-		
-	}
-}
-
-class RouteRegistry {
-	
-	private $buildDate = NULL;
+	const FILE_PATH = APP_PATH . DS . 'route.store';
 	private $routes = array();
 	
-	public function __construct() { 
+	public function __construct() {
+		$this->load();
 	}
-
-	public function addRoute(Route $route) {
+	
+	function __destruct() {
+  	$this->write();
+	}
+	
+	public function put(Route $route) {
 		$httpMethod = trim($route->getHttpMethod());
 		$this->routes[$httpMethod][] = $route;
 	}
 	
-	public function getRoute($httpMethod, $path) {
-		if(isset($this->routes[$httpMethod]) && $path) {
-			foreach($this->routes[$httpMethod] as $route) {
-				if($route->matches($httpMethod, $path)){
-					return $route;
-				}
+	/*
+	* Thoughts on passing paths as HTTPMETHOD@URL?
+	* example: GET@/blog/12
+	*/
+	public function exists($path) {
+		$args = explode('@', $path);
+		return array_key_exists($args[0], $this->routes) && in_array($args[1], $this->routes[$args[0]]);
+	}
+	
+	public function get($path) {
+		$args = explode('@', $path);
+		$group = $this->routes[$args[0]];
+		foreach($group as $route) {
+			if($route->matches($args[0], $args[1])){
+				return $route;
 			}
 		}
 		return NULL;
 	}
 	
-	public function clearRoutes() {
-		$this->routes = array();
+	public function expire() {
+		$resource = @fopen(self::FILE_PATH, 'w');
+		if($resource) {
+			fclose($resource);
+		}
 	}
 	
-	public static function store($registry) {
-		$serialized = serialize($registry);
-		$route_store = APP_PATH . DS . 'route.store';
+	public function last_modified() {
+		return filemtime(self::FILE_PATH);
+	}
+
+	private function write() {
+		$serialized = serialize($this->routes);
 		
-		if(is_file($route_store) == FALSE) {
-			$file = fopen($route_store, 'w');
+		if(is_file(self::FILE_PATH) == FALSE) {
+			$file = fopen(self::FILE_PATH, 'w');
 			if($file == FALSE) {
 				LumberJack::instance()->log('An error has occured: route.store could not be created.');
-				return FALSE; 
 			}
 			fclose($file);
 		}
 		
-		if (is_writable($route_store) == FALSE) {
-			if (!@chmod($route_store, 0666)){ // TODO catch exception
+		if (is_writable(self::FILE_PATH) == FALSE) {
+			if (!@chmod(self::FILE_PATH, 0666)){ // TODO catch exception
 				LumberJack::instance()->log('An error has occured: route.store does not appear writable.');
-				return FALSE; 
 			}
 		}
 		
-		if(!@file_put_contents($route_store, $serialized)) {
+		if(!@file_put_contents(self::FILE_PATH, $serialized)) {
 			LumberJack::instance()->log('An error has occured: file_put_contents failed with file route.store.');
-			return FALSE;
 		}
-		return TRUE;
 	}
 	
-	public static function retrieve() {
-		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents('route.store') : FALSE;
+	private function load() {
+		$serialized = file_exists(self::FILE_PATH) ? file_get_contents('route.store') : FALSE;
 		if($serialized !== FALSE) {
-			$registry = unserialize($serialized);
-			if($registry->isCurrent() == FALSE) {
-				$registry->buildRegistry();
-				RouteRegistry::store($registry);
-			}
-		} else {
-			LumberJack::instance()->log('No route.store found, attempting to build registry', LumberJack::DEBUG);
-			$registry = new RouteRegistry();
-			$registry->buildRegistry();
-			RouteRegistry::store($registry);
+			$this->routes = unserialize($serialized);
+		} 
+	}
+}
+
+class RouteRegistry {
+	private $storage = NULL;
+	private $buildDate = NULL;
+	
+	private static $instance = NULL;
+	
+	private function __construct(RouteStorage $storage) {
+		$this->storage = $storage; 
+	}
+
+	public static function instance(RouteStorage $storage = NULL) {
+		if(self::$instance == NULL) {
+			self::$instance = new RouteRegistry($storage);
 		}
-		return $registry;
+		return self::$instance;
+	}
+	
+	//addRoute
+	public function put(Route $route) {
+		$this->storage->put($route);
+	}
+	
+	//getRoute
+	public function get($httpMethod, $path) {
+		if(strpos($httpMethod, '@') === FALSE) { 
+			$httpMethod .= '@' . $path;
+		}
+		return $this->storage->get($httpMethod);
+	}
+	
+	//clearRoutes
+	public function expire() {
+		$this->storage->expire();
 	}
 	
 	private function isCurrent() {
+		$last_modified = $this->storage->last_modified();
 		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
 			$filename = substr($filename, strripos($filename, DS) + 1);
 			if($filename == 'index.php')
 				continue;
 		  $modified = filemtime($filename);
-			if($modified > $this->buildDate) {
+			if($modified > $last_modified) {
 				return FALSE;
 			}
 		}
@@ -255,7 +280,7 @@ class RouteRegistry {
 				continue;
 			$routes = RouteFactory::getRoutesFromFile($filename);
 			foreach($routes as $route) {
-				$this->addRoute($route);
+				$this->put($route);
 			}
 		}
 	}
@@ -271,7 +296,7 @@ class Dispatcher {
 		
 		$url = $this->getUrl();
 		$httpMethod = $this->getHttpMethod();
-		$this->route = $this->registry->getRoute($httpMethod, $url);
+		$this->route = $this->registry->get($httpMethod, $url);
 	}
 	
 	private function getUrl() {
