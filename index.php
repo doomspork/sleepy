@@ -18,6 +18,8 @@ define('APP_PATH', ROOT);
 
 require_once(CORE_PATH . DS . 'routes.php');
 
+RouteRegistry::instance(new FlatFileStorage());
+
 $dispatcher = new Dispatcher();
 $dispatcher->dispatch();
 ?>
