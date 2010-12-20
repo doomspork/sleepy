@@ -47,6 +47,11 @@ class Route {
 				for($i = 0, $count = count($uri) ; $i <  $count ; $i++) {
 					$argument = FALSE;
 					$label = $pattern = $this->pattern[$i];
+					//Special case for: / (skip all the computations and move on)
+					if($pattern == 0 && $uri[0] == 0) {
+						return TRUE;
+					}
+
 					if(substr($label, 0, 1) == ':') {
 						$argument = TRUE;
 						$label = substr($label, 1);
@@ -56,8 +61,8 @@ class Route {
 					if(preg_match("/\/[a-z]+\//i", $pattern) == FALSE) {
 						$pattern = '/'. $pattern . '/i';
 					}
-					
-					if($pattern != '//i' && preg_match($pattern, $uri[$i])) {
+
+					if(preg_match($pattern, $uri[$i])) {
 						if($argument) {
 							$this->arguments[$label] = $uri[$i];
 						}
@@ -193,7 +198,7 @@ class RouteRegistry {
 	}
 	
 	public static function retrieve() {
-		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents('route.store') : FALSE;
+		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents(APP_PATH . DS .  'route.store') : FALSE;
 		if($serialized !== FALSE) {
 			$registry = unserialize($serialized);
 			if($registry->isCurrent() == FALSE) {
@@ -232,6 +237,7 @@ class RouteRegistry {
 				$this->addRoute($route);
 			}
 		}
+		$this->buildDate = time();
 	}
 }
 
