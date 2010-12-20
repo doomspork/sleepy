@@ -18,6 +18,9 @@ define('APP_PATH', ROOT);
 
 require_once(CORE_PATH . DS . 'routes.php');
 
+$lumberjack = LumberJack::instance(new BasicOutput());
+$lumberjack->setReportingLevel(LumberJack::ERROR);
+
 $dispatcher = new Dispatcher();
 $dispatcher->dispatch();
 ?>
