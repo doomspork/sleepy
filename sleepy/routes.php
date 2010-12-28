@@ -22,8 +22,8 @@ class Route {
 	
 	private function parseAnnotations(AnnotationGroup $annotations) {
 		foreach($annotations as $annotation) {
-			$label = $annotation->getLabel();
-			$pattern = $annotation->getPattern();
+			$label = $annotation->getKey();
+			$pattern = $annotation->getValue();
 			if($annotation instanceof RouteAnnotation) {
 				$this->setHttpMethod($label);
 				$this->setPattern($pattern);
@@ -85,7 +85,7 @@ class Route {
 		return $this->class;
 	}
 	
-	private function getPattern() {
+	private function getValue() {
 		return $this->pattern;
 	}
 	
@@ -218,7 +218,6 @@ class RouteRegistry {
 		$this->buildDate = time();
 	}
 }
-
 
 class Dispatcher {
 	private $registry = null;
