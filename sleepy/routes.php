@@ -60,13 +60,12 @@ class Route {
 	}
 	
 	public function setMethod(ReflectionMethod $method) {
-		$this->method = $method	;
+		$this->method = $method;
 	}
 	
 	public function setPattern($pattern) {
 		$pattern = trim($pattern);
-		//$pattern = (stripos($pattern, '/') == 0) ? substr($pattern, 1) : $pattern;
-		$this->pattern = $pattern; //explode('/', $pattern);
+		$this->pattern = $pattern;
 	}
 	
 	public function setParameters($parameters) {
@@ -99,7 +98,6 @@ class Route {
 }
 
 class RouteFactory {
-
 	private function __construct() {}
 	private function __clone() {}
 	
@@ -107,25 +105,28 @@ class RouteFactory {
 		$routes = array();
 		@include_once(APP_PATH . DS . $filename);
 		$className = rtrim($filename, '.php');
-		$clz = new ReflectionClass($className);
-		$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 
-		foreach($methods as $method) {
-			$annotations = AnnotationReader::MethodAnnotations($method);
-			if($annotations != NULL) {
-				$route = new Route($annotations, $method);
-				$routes[] = $route;
-			}
+		try {
+			$clz = new ReflectionClass($className);
+			$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 
+			foreach($methods as $method) {
+				$annotations = AnnotationReader::MethodAnnotations($method);
+				if($annotations != NULL) {
+					$route = new Route($annotations, $method);
+					$routes[] = $route;
+				}
+		  } 
+		} catch (ReflectionException $exception) {
+			LumberJack::instance()->log($exception->getMessage(), LumberJack::ERROR);	
 		}
 		return $routes;
 	}
 }
 
 class RouteRegistry {
-	
 	private $buildDate = NULL;
 	private $routes = array();
 	
-	public function __construct() { 
+	private function __construct() { 
 	}
 
 	public function addRoute(Route $route) {
@@ -175,7 +176,7 @@ class RouteRegistry {
 		return TRUE;
 	}
 	
-	public static function retrieve() {
+	public static function instance() {
 		$serialized = file_exists(APP_PATH . DS . 'route.store') ? file_get_contents(APP_PATH . DS .  'route.store') : FALSE;
 		if($serialized !== FALSE) {
 			$registry = unserialize($serialized);
@@ -219,16 +220,28 @@ class RouteRegistry {
 	}
 }
 
-class Dispatcher {
-	private $registry = null;
-	private $route = null;
+final class Dispatcher {
+	private static $registry = NULL;
+	private $route = NULL;
 	
-	public function __construct() {
-		$this->registry = RouteRegistry::retrieve();
+	public function __construct($route = NULL) {
+		if($registry == NULL) {
+			self::$registry = RouteRegistry::instance();
+		}
 		
-		$url = $this->getUrl();
-		$httpMethod = $this->getHttpMethod();
-		$this->route = $this->registry->getRoute($httpMethod, $url);
+		/*
+		* Identify an elegant solution.
+		*/ 
+		if($arg == NULL || is_string($arg)) {
+			$url = $this->getUrl();
+			$httpMethod = $this->getHttpMethod();
+			if(is_string($arg)) {
+				$url = $route;
+				$httpMethod = "GET";
+			}
+			$route = self::$registry->getRoute($httpMethod, $url);
+		}
+		$this->setRoute($route);
 	}
 	
 	private function getUrl() {
@@ -237,6 +250,15 @@ class Dispatcher {
 	
 	private function getHttpMethod() {
 		return $_SERVER['REQUEST_METHOD'];
+	}
+	
+	private function setRoute(Route $route) {
+		$this->route = $route;
+	}
+	
+	public static function redirect($url) {
+		$dispatcher = new Dispatcher($url);
+		$dispatcher->dispatch();
 	}
 	
 	public function dispatch() {
