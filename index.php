@@ -16,10 +16,10 @@ define('CORE_PATH', ROOT . DS . LIB_DIR);
 
 define('APP_PATH', ROOT);
 
-require_once(CORE_PATH . DS . 'routes.php');
+require_once CORE_PATH . DS . 'routes.php';
 
 $lumberjack = LumberJack::instance(new BasicOutput());
-$lumberjack->setReportingLevel(LumberJack::ERROR);
+$lumberjack->setReportingLevel(LumberJack::WARNING);
 
 $dispatcher = new Dispatcher();
 $dispatcher->dispatch();
