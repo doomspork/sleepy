@@ -1,6 +1,6 @@
 <?php
-require_once(CORE_PATH . DS . 'annotations.php');
-require_once(CORE_PATH . DS . 'lumberjack.php');
+require_once CORE_PATH . DS . 'annotations.php');
+require_once CORE_PATH . DS . 'lumberjack.php');
 
 class Route {
 	protected $httpMethod = '';
@@ -64,9 +64,7 @@ class Route {
 	}
 	
 	public function setPattern($pattern) {
-		$pattern = trim($pattern);
-		//$pattern = (stripos($pattern, '/') == 0) ? substr($pattern, 1) : $pattern;
-		$this->pattern = $pattern; //explode('/', $pattern);
+		$this->pattern = trim($pattern);
 	}
 	
 	public function setParameters($parameters) {
@@ -106,15 +104,19 @@ class RouteFactory {
 	public static function getRoutesFromFile($filename) {
 		$routes = array();
 		@include_once(APP_PATH . DS . $filename);
-		$className = rtrim($filename, '.php');
-		$clz = new ReflectionClass($className);
-		$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 
-		foreach($methods as $method) {
-			$annotations = AnnotationReader::MethodAnnotations($method);
-			if($annotations != NULL) {
-				$route = new Route($annotations, $method);
-				$routes[] = $route;
+		$className = rtrim(substr($filename, strripos($filename, DS) + 1), '.php');
+		try {
+			$clz = new ReflectionClass($className);
+			$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 
+			foreach($methods as $method) {
+				$annotations = AnnotationReader::MethodAnnotations($method);
+				if($annotations != NULL) {
+					$route = new Route($annotations, $method);
+					$routes[] = $route;
+				}
 			}
+		} catch (ReflectionException $exception) {
+			LumberJack::instance()->log($exception->getMessage(), LumberJack::ERROR);	
 		}
 		return $routes;
 	}
@@ -210,13 +212,13 @@ class FlatFileStorage implements RouteStorage {
 		
 		if (is_writable($this->file_path) == FALSE) {
 			if (!@chmod($this->file_path, 0666)){ // TODO catch exception
-				LumberJack::instance()->log('An error has occured: route.store does not appear writable.');
+				LumberJack::instance()->log('An error has occured: route.store does not appear writable.', LumberJack::ERROR);
 				return;
 			}
 		}
 		
 		if(!@file_put_contents($this->file_path, $serialized)) {
-			LumberJack::instance()->log('An error has occured: file_put_contents failed with file route.store.');
+			LumberJack::instance()->log('An error has occured: file_put_contents failed with file route.store.', LumberJack::ERROR);
 		}
 	}
 	
@@ -271,8 +273,7 @@ class RouteRegistry {
 	public function isCurrent() {
 		$last_modified = $this->storage->last_modified();
 		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
-			$filename = substr(strrchr($filename, DS), 1);
-			if($filename == 'index.php')
+			if(stripos($filename, 'index.php') != FALSE)
 				continue;
 		  $modified = filemtime($filename);
 			if($modified > $last_modified) {
@@ -284,8 +285,7 @@ class RouteRegistry {
 	
 	private function buildRegistry() {	
 		foreach (glob(APP_PATH . DS . '*.php') as $filename) {
-			$filename = substr(strrchr($filename, DS), 1);
-			if($filename == 'index.php')
+			if(stripos($filename, 'index.php') != FALSE)
 				continue;
 			$routes = RouteFactory::getRoutesFromFile($filename);
 			foreach($routes as $route) {
@@ -296,17 +296,36 @@ class RouteRegistry {
 	}
 }
 
-
-class Dispatcher {
-	private $registry = null;
-	private $route = null;
+final class Dispatcher {
+	private static $registry = NULL;
+	private $route = NULL;
 	
-	public function __construct() {
-		$this->registry = RouteRegistry::instance();
+	public function __construct($route = NULL) {
+		if($registry == NULL) {
+			self::$registry = RouteRegistry::instance();
+		}
 		
-		$url = $this->getUrl();
-		$httpMethod = $this->getHttpMethod();
-		$this->route = $this->registry->get($httpMethod, $url);
+		/*
+		* TODO: Identify an elegant solution.
+		*/ 
+		if($route == NULL || is_string($route)) {
+			if(is_string($route)) {
+				$url = $route;
+				$httpMethod = 'GET';
+			} else {
+				$url = $this->getUrl();
+				$httpMethod = $this->getHttpMethod();
+			}
+
+			$route = self::$registry->getRoute($httpMethod, $url);
+		}
+
+		if($route == NULL) {
+			LumberJack::instance()->log('\'' . $this->getUrl() . '\' was not found!', LumberJack::FATAL);
+			header($_SERVER["SERVER_PROTOCOL"] . '404 Not Found');
+			return;
+		}
+		$this->setRoute($route);
 	}
 	
 	private function getUrl() {
@@ -315,6 +334,15 @@ class Dispatcher {
 	
 	private function getHttpMethod() {
 		return $_SERVER['REQUEST_METHOD'];
+	}
+	
+	private function setRoute(Route $route) {
+		$this->route = $route;
+	}
+	
+	public static function redirect($url) {
+		$dispatcher = new Dispatcher($url);
+		$dispatcher->dispatch();
 	}
 	
 	public function dispatch() {
@@ -330,13 +358,10 @@ class Dispatcher {
 				$instance = $clz->newInstance();
 				$method->invokeArgs($instance, $args);
 			} else {
-				LumberJack::instance()->log($filename . ' was requested but could not be located.');
+				LumberJack::instance()->log($filename . ' was requested but is missing.');
 			}
-		} else {
-			LumberJack::instance()->log('\'' . $this->getUrl() . '\' was not found!', LumberJack::FATAL);
 		}
 	}
 }
-
 
 ?>

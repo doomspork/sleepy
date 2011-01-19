@@ -1,9 +1,19 @@
 <?php
 
 /*******************************************
+* LumberJack
 *
-*
-*
+* LumberJack serves as a simple logging class with extensibility
+*		through the use of LoggingAdapters.  By default the BasicOutput
+*		adapter is used.  Dependency injection is used to configure
+*		which adapter will be utilized by LumberJack. 
+*		
+* Roadmap:
+* + Implement functionality to support N adapters per LumberJack instance
+* + Implement additional adapters and adapter functionality
+* + Redesign the log method better utitlize custom Message types
+* + Add support for logging of exceptions
+* + Add support for logging Message objects
 ********************************************/
 
 final class LumberJack {
@@ -53,9 +63,6 @@ final class LumberJack {
 				case self::FATAL:
 					$msg = new FatalMessage($message, $code);
 					break;
-				default:
-					$msg = new BaseMessage($message, $code);
-					break;
 			}
 			if($msg != NULL) {
 				$this->adapter->log($msg);
@@ -73,8 +80,15 @@ final class LumberJack {
 }
 
 /*******************************************
+* LoggingAdapter
 *
+* LoggingAdapter is an interface which can be implemented
+*		to create new means of logging messages and errors from
+*		the LumberJack library
 *
+*	Two implements are contained below: BasicOutput and FileLogging
+* + BasicOutput simply prints messages to the screen, hence the name.
+* + FileLogging writes all messages to a set
 *
 ********************************************/
 interface LoggingAdapter { 
@@ -123,13 +137,24 @@ class FileLogging implements LoggingAdapter {
 	public function reset() { 
 		$handle = fopen($filename, 'w');
 		fclose($handle);
-	} //clear file
+	}
 }
 
 /*******************************************
+* Message
 *
+* Message is an interface used to implement the wrapper message
+*		which contains the information used within LumberJack.
+*		The use of an interface provides an avenue by which developers
+*		can implement additional message types.
 *
-*
+* Currently there is a basic set of messages predefined which should
+*		cover the needs of most applications.  These types do not implement
+*		differing functionality, at this time, their class types are used 
+*		during the logging process.
+* 
+* Roadmap:
+* + Provide a clean and concise formatting for trace logs
 ********************************************/
 interface Message {
 	public function getMessage();
@@ -139,7 +164,7 @@ interface Message {
 	public function getFile();
 }
 
-class BaseMessage implements Message {
+abstract class BaseMessage implements Message {
 	protected $message;
 	protected $code = 0;
 	protected $line;
@@ -178,7 +203,6 @@ class BaseMessage implements Message {
 	
 	public function getTrace() {
 		return $this->trace;
-		//How do I wish to format the trace?
 	}
 }
 

@@ -10,54 +10,56 @@
 * and decided to incorporate some of his ideas.  I however, did not want to rely on external
 * packages, so I've deviated there.
 * Credit: http://interfacelab.com/metadataattributes-in-php/
-*/
-
-/**
-* Annotations 
 *
 * This is a wrapper for the annotations stored in an array.
 * I'm using a class because the idea is to expand, separately, 
 * on the use of custom annotations w/ reflection.
 *
-* And because I luv objects.  It makes me sad inside that so few PHP developers use classes, they're beautiful.I 
+* And because I luv objects.  It makes me sad inside that so few PHP developers use classes, they're beautiful.
 */
 
 interface Annotation {	
-	public function getLabel();
-	public function getPattern();
+	public function getKey();
+	public function getValue();
 }
 
 class BaseAnnotation implements Annotation {
-	//public static $pattern = NULL; //getStaticPropertyValue() requires the property to be public :(
-	protected $label = '';
-	protected $pattern = '';
+	protected $key = '';
+	protected $value = '';
 	
-	function __construct($label = '', $pattern = '') {
-		$this->label = $label;
-		$this->pattern = $pattern;
+	function __construct($key = '', $value = '') {
+		$this->key = $key;
+		$this->value = $value;
 	}
 	
-	public function getLabel() {
-		return $this->label;
+	public function getKey() {
+		return $this->key;
 	}
 	
-	public function getPattern() {
-		return $this->pattern;
+	public function getValue() {
+		return $this->value;
 	}
 }
 
 class RouteAnnotation extends BaseAnnotation {
 	public static $match = '/GET|POST|PUT|DELETE/i';
-	function __construct($label, $pattern) {
-		parent::__construct($label, $pattern);
+	function __construct($key, $value) {
+		parent::__construct($key, $value);
 	}
 }
 
 class LabelAnnotation extends BaseAnnotation {
 	public static $match = '/[ a-z]+/i';
-	function __construct($label, $pattern) {
-		$label = trim(str_replace('+', '', $label));
-		parent::__construct($label, $pattern);
+	function __construct($key, $value) {
+		//$key = trim(str_replace('+', '', $key));
+		parent::__construct($key, $value);
+	}
+}
+
+class UserAgentAnnotation extends BaseAnnotation {
+	public static $match = '/USER-?AGENT/i';
+	function __construct($key, $value) {
+		parent::__construct($key, $value);
 	}
 }
 
