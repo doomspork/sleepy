@@ -4,8 +4,6 @@
 * but for the time being, it'll be the easiest single point for the .htaccess file
 */
 
-define('VERSION', '0.1');
-
 define('DS', DIRECTORY_SEPARATOR);
 
 define('ROOT', dirname(__FILE__));

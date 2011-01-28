@@ -1,6 +1,6 @@
 <?php
-require_once CORE_PATH . DS . 'annotations.php');
-require_once CORE_PATH . DS . 'lumberjack.php');
+require_once CORE_PATH . DS . 'annotations.php';
+require_once CORE_PATH . DS . 'lumberjack.php';
 
 class Route {
 	protected $httpMethod = '';
@@ -22,8 +22,8 @@ class Route {
 	
 	private function parseAnnotations(AnnotationGroup $annotations) {
 		foreach($annotations as $annotation) {
-			$label = $annotation->getLabel();
-			$pattern = $annotation->getPattern();
+			$label = $annotation->getKey();
+			$pattern = $annotation->getValue();
 			if($annotation instanceof RouteAnnotation) {
 				$this->setHttpMethod($label);
 				$this->setPattern($pattern);
@@ -35,15 +35,16 @@ class Route {
 	}
 	
 	public function matches($httpMethod, $uri) {
-		LumberJack::instance()->log('Attempting match for URI' . $uri, LumberJack::DEBUG);
 		if($this->httpMethod == $httpMethod) {
+			$pattern = '';
 			foreach($this->parameters as $key => $value) {
 				$index = stripos($this->pattern, $key) - 1;
 				$length = strlen($key) + 1;
 				$args[] = $index;
-				$this->pattern = substr_replace($this->pattern, $value, $index, $length);
+				$pattern = substr_replace($this->pattern, $value, $index, $length);
 			}
-			$result = preg_match('@^' . $this->pattern . "/?$@i", $uri);
+			LumberJack::instance()->log('Attempting match for URI' . $uri . ' with pattern ' , $pattern, LumberJack::DEBUG);
+			$result = preg_match('@^' . $pattern . "/?$@i", $uri);
 			if($result && isset($args)) {
 				foreach($args as $index) {
 					$str = substr($uri, $index);
@@ -103,7 +104,7 @@ class RouteFactory {
 	
 	public static function getRoutesFromFile($filename) {
 		$routes = array();
-		@include_once(APP_PATH . DS . $filename);
+		include_once($filename);
 		$className = rtrim(substr($filename, strripos($filename, DS) + 1), '.php');
 		try {
 			$clz = new ReflectionClass($className);
@@ -134,6 +135,38 @@ interface RouteStorage {
 	public function get($path);
 	public function expire();
 	public function last_modified();
+}
+
+class MemcacheStorage implements RouteStorage {
+	private $memcache = NULL;
+	
+	public function __constructor($host, $port = 11211) {
+		$this->memcache = new Memcache;
+		$this->memcache->connect($host, $port);
+	}
+	
+	public function put(Route $route) {
+		return $this->memcache->set($route->getPattern(), $route, 0, 1800);
+	}
+	
+	public function exists($path) {
+		if($this->get($path) != FALSE) {
+			return TRUE;
+		}
+		return FALSE;
+	}
+	
+	public function get($path) {
+		return $memcache->get($path);
+	}
+	
+	public function expire() {
+		return $this->memcache->flush();
+	}
+	
+	public function last_modified() {
+		
+	}
 }
 
 class FlatFileStorage implements RouteStorage {
@@ -201,14 +234,12 @@ class FlatFileStorage implements RouteStorage {
 	private function write() {
 		$serialized = serialize($this->routes);
 		
-		if(is_file($this->file_path) == FALSE) {
-			$file = fopen($this->file_path, 'w');
-			if($file == FALSE) {
-				LumberJack::instance()->log('An error has occured: route.store could not be created.', LumberJack::ERROR);
-				return;
-			}
-			fclose($file);
+		$file = fopen($this->file_path, 'w');
+		if($file == FALSE) {
+			LumberJack::instance()->log('An error has occured: route.store could not be created.', LumberJack::ERROR);
+			return;
 		}
+		fclose($file);
 		
 		if (is_writable($this->file_path) == FALSE) {
 			if (!@chmod($this->file_path, 0666)){ // TODO catch exception
@@ -317,7 +348,7 @@ final class Dispatcher {
 				$httpMethod = $this->getHttpMethod();
 			}
 
-			$route = self::$registry->getRoute($httpMethod, $url);
+			$route = self::$registry->get($httpMethod, $url);
 		}
 
 		if($route == NULL) {
