@@ -105,7 +105,7 @@ class RouteFactory {
 	public static function getRoutesFromFile($filename) {
 		$routes = array();
 		include_once($filename);
-		$className = rtrim(substr($filename, strripos($filename, DS) + 1), '.php');
+		$className = substr($filename, strripos($filename, '/') + 1, -4);
 		try {
 			$clz = new ReflectionClass($className);
 			$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC); 

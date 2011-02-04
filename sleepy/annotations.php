@@ -51,7 +51,6 @@ class RouteAnnotation extends BaseAnnotation {
 class LabelAnnotation extends BaseAnnotation {
 	public static $match = '/[ a-z]+/i';
 	function __construct($key, $value) {
-		//$key = trim(str_replace('+', '', $key));
 		parent::__construct($key, $value);
 	}
 }
