@@ -180,7 +180,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	function __destruct() {
-		if($this->registry->isCurrent() == FALSE) {
+		if($this->registry != NULL && $this->registry->isCurrent() == FALSE) {
 			LumberJack::instance()->log('Writing to route storage.', LumberJack::DEBUG);
   		$this->write();
 		}
@@ -225,7 +225,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	public function last_modified() {
-		if (file_exists($filename)) {
+		if (file_exists($this->file_path)) {
 			return filemtime($this->file_path);
 		} 
 		return 0;
@@ -262,7 +262,7 @@ class FlatFileStorage implements RouteStorage {
 }
 
 class RouteRegistry {
-	private $storage = NULL;
+	protected $storage = NULL;
 	private $buildDate = NULL;
 	
 	private static $instance = NULL;
@@ -328,11 +328,11 @@ class RouteRegistry {
 }
 
 final class Dispatcher {
-	private static $registry = NULL;
-	private $route = NULL;
+	protected static $registry = NULL;
+ 	protected $route = NULL;
 	
 	public function __construct($route = NULL) {
-		if($registry == NULL) {
+		if(self::$registry == NULL) {
 			self::$registry = RouteRegistry::instance();
 		}
 		
