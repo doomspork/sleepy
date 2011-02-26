@@ -3,6 +3,7 @@
 * I'm not really excited about this file.  I'm not going to keep it around either
 * but for the time being, it'll be the easiest single point for the .htaccess file
 */
+error_reporting(E_ERROR | E_WARNING | E_PARSE | E_NOTICE);
 
 define('DS', DIRECTORY_SEPARATOR);
 
