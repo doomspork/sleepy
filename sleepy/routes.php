@@ -42,7 +42,6 @@ class Route {
 				$length = strlen($key) + 1;
 				$args[] = $index;
 				$pattern = substr_replace($pattern, $value, $index, $length);
-				echo $pattern, " <-- pattern<br />\n";
 			}
 			LumberJack::instance()->log('Attempting match for URI ' . $uri . ' with pattern ' . $pattern, LumberJack::DEBUG);
 			$result = preg_match('@^' . $pattern . "/?$@i", $uri);
