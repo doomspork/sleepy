@@ -42,14 +42,14 @@ class BaseAnnotation implements Annotation {
 }
 
 class RouteAnnotation extends BaseAnnotation {
-	public static $match = '/^GET|POST|PUT|DELETE$/i';
+	public static $match = '/GET|POST|PUT|DELETE/i';
 	function __construct($key, $value) {
 		parent::__construct($key, $value);
 	}
 }
 
 class LabelAnnotation extends BaseAnnotation {
-	public static $match = '/^[ _a-z]+$/i';
+	public static $match = '/[ a-z]+/i';
 	function __construct($key, $value) {
 		parent::__construct($key, $value);
 	}
