@@ -36,14 +36,15 @@ class Route {
 	
 	public function matches($httpMethod, $uri) {
 		if($this->httpMethod == $httpMethod) {
-			$pattern = '';
+			$pattern = $this->pattern;
 			foreach($this->parameters as $key => $value) {
 				$index = stripos($this->pattern, $key) - 1;
 				$length = strlen($key) + 1;
 				$args[] = $index;
-				$pattern = substr_replace($this->pattern, $value, $index, $length);
+				$pattern = substr_replace($pattern, $value, $index, $length);
+				echo $pattern, " <-- pattern<br />\n";
 			}
-			LumberJack::instance()->log('Attempting match for URI' . $uri . ' with pattern ' , $pattern, LumberJack::DEBUG);
+			LumberJack::instance()->log('Attempting match for URI ' . $uri . ' with pattern ' . $pattern, LumberJack::DEBUG);
 			$result = preg_match('@^' . $pattern . "/?$@i", $uri);
 			if($result && isset($args)) {
 				foreach($args as $index) {
@@ -180,7 +181,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	function __destruct() {
-		if($this->registry != NULL && $this->registry->isCurrent() == FALSE) {
+		if($this->registry->isCurrent() == FALSE) {
 			LumberJack::instance()->log('Writing to route storage.', LumberJack::DEBUG);
   		$this->write();
 		}
@@ -225,7 +226,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	public function last_modified() {
-		if (file_exists($this->file_path)) {
+		if (file_exists($filename)) {
 			return filemtime($this->file_path);
 		} 
 		return 0;
@@ -262,7 +263,7 @@ class FlatFileStorage implements RouteStorage {
 }
 
 class RouteRegistry {
-	protected $storage = NULL;
+	private $storage = NULL;
 	private $buildDate = NULL;
 	
 	private static $instance = NULL;
@@ -328,11 +329,11 @@ class RouteRegistry {
 }
 
 final class Dispatcher {
-	protected static $registry = NULL;
- 	protected $route = NULL;
+	private static $registry = NULL;
+	private $route = NULL;
 	
 	public function __construct($route = NULL) {
-		if(self::$registry == NULL) {
+		if($registry == NULL) {
 			self::$registry = RouteRegistry::instance();
 		}
 		
