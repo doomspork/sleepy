@@ -206,11 +206,13 @@ class FlatFileStorage implements RouteStorage {
 	
 	public function get($path) {
 		$args = explode('@', $path);
-		$group = $this->routes[$args[0]];
-		if(empty($group) == FALSE) {
-			foreach($group as $route) {
-				if($route->matches($args[0], $args[1])){
-					return $route;
+		if(array_key_exists($args[0], $this->routes)) {
+			$group = $this->routes[$args[0]];
+			if(empty($group) == FALSE) {
+				foreach($group as $route) {
+					if($route->matches($args[0], $args[1])){
+						return $route;
+					}
 				}
 			}
 		}
@@ -225,7 +227,7 @@ class FlatFileStorage implements RouteStorage {
 	}
 	
 	public function last_modified() {
-		if (file_exists($filename)) {
+		if (file_exists($this->file_path)) {
 			return filemtime($this->file_path);
 		} 
 		return 0;
@@ -332,7 +334,7 @@ final class Dispatcher {
 	private $route = NULL;
 	
 	public function __construct($route = NULL) {
-		if($registry == NULL) {
+		if(self::$registry == NULL) {
 			self::$registry = RouteRegistry::instance();
 		}
 		
@@ -360,6 +362,8 @@ final class Dispatcher {
 	}
 	
 	private function getUrl() {
+		if(empty($_GET))
+			return '/';
 		return '/' . $_GET['url'];
 	}
 	
