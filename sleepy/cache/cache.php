@@ -10,17 +10,20 @@ class Cache {
 	//Value validators
 	private $validators;
 	
-	public function __construct($options = array()) {
+	public function __construct($identifier = '', $options = array()) {
 		
+		$options['indentifer'] = $identifier;
+		$options['location'] = (isset($options['location']) ? $options['location'] : dirname(__FILE__));
 		$type = isset($options['storage']) ? $options['storage'] : 'file';
 		
-		$stores = $this->getStores();
+		$stores = $this->getStores($options);
 		if(!in_array($type, $stores)) {
-			Lumberjack::instance()->log("Cache storage type " . $type . " unsupported.", LumberJack::FATAL);
+			Lumberjack::instance()->log('Cache storage type ' . $type . ' unsupported.', LumberJack::FATAL);
 		}
 		//TODO: Load default options then apply user supplied options.
 		$this->storage = $this->getInstance($type, $options);
 		$this->validators = array();
+		$this->gc();
 	}
 	
 	private function &getInstance($type = 'file', $options = array()) {
@@ -36,16 +39,19 @@ class Cache {
 	
 	//add item to cache for specific id
 	public function store($id, $value, $replace = true) {
+		$result = FALSE;
 		if($id != NULL && (!$this->exists($id) || $replace)) { // logical implication: A -> B
-				$this->storage->store($id, $value)
+				$this->storage->store($id, $value);
+				$result = TRUE;
 			}
 		}
-		return FALSE;
+		$this->gc();
+		return $result;
 	}
 	
 	//Get one or more items from cache
 	public function get($id) {
-		$value = FALSE;
+		$value = NULL;
 		if(isset($id) && $id != NULL) {
 			if(!is_array($id)) {
 				$id[] = $id;
@@ -60,6 +66,7 @@ class Cache {
 				$value = $results;
 			}
 		}
+		$this->gc();
 		return $value;
 	}
 	
@@ -69,14 +76,14 @@ class Cache {
 	
 	//Garbage Collection & Expiration
 	public function gc() {
-		
+		$this->storage->gc();
 	}
 	
-	public function getStores() {
+	public function getStores($options = array()) {
 		$stores = array();
 		foreach (glob(dirname(__FILE__) . DS . 'storage' . DS . '*.php') as $filename) {
 			$class = trim(substr($filename, strripos($filename, '/') + 1, -4));
-			$instance = $this->getInstance($class);
+			$instance = $this->getInstance($class, $options);
 			if(($instance instanceof Cacheable) && $instance->isSupported()) {
 				$stores[] = $class;
 			}
