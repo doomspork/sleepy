@@ -15,6 +15,8 @@ define('CORE_PATH', ROOT . DS . LIB_DIR);
 
 define('APP_PATH', ROOT);
 
+define('SETTINGS_PATH', ROOT . DS . 'sleepy.settings');
+
 require_once CORE_PATH . DS . 'routes.php';
 
 $lumberjack = LumberJack::instance(new BasicOutput());
