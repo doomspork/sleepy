@@ -1,0 +1,11 @@
+<?php
+
+public interface Cacheable {
+	public function store($id, $value);
+	public function get($id);
+	public function gc();
+	public function isSupported();
+}
+
+
+?>
