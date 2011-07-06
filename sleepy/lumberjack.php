@@ -179,8 +179,7 @@ abstract class BaseMessage implements Message {
 	
 	final private function parseTrace() {
 		$this->trace = debug_backtrace(true);
-		$size = count($this->trace) - 1;
-		$current = $this->trace[$size - 1];
+		$current = $this->trace[3];
 		$this->file = $current['file'];
 		$this->line = $current['line'];
 	}
