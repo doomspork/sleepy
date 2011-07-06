@@ -11,7 +11,6 @@ class Cache {
 	private $validators;
 	
 	public function __construct($identifier = '', $options = array()) {
-		
 		$options['indentifer'] = $identifier;
 		$options['location'] = (isset($options['location']) ? $options['location'] : dirname(__FILE__));
 		$type = isset($options['storage']) ? $options['storage'] : 'file';
@@ -33,8 +32,13 @@ class Cache {
 		}
 		
 		$clz = new ReflectionClass($type);
-		$instance = $clz->newInstanceArg($options);
+		$instance = $clz->newInstanceArgs($options);
 		return $instance;
+	}
+	
+	//Garbage Collection & Expiration
+	public function gc() {
+		$this->storage->gc();
 	}
 	
 	//add item to cache for specific id
@@ -43,7 +47,6 @@ class Cache {
 		if($id != NULL && (!$this->exists($id) || $replace)) { // logical implication: A -> B
 				$this->storage->store($id, $value);
 				$result = TRUE;
-			}
 		}
 		$this->gc();
 		return $result;
@@ -72,11 +75,6 @@ class Cache {
 	
 	public function exists($id) {
 		return (FALSE == $this->get($id));
-	}
-	
-	//Garbage Collection & Expiration
-	public function gc() {
-		$this->storage->gc();
 	}
 	
 	public function getStores($options = array()) {

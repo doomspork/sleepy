@@ -1,6 +1,6 @@
 <?php
 
-public interface Cacheable {
+interface Cacheable {
 	public function store($id, $value);
 	public function get($id);
 	public function gc();

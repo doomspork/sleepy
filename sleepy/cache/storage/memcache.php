@@ -4,7 +4,7 @@ require_once LIB_DIR . DS . 'cache' . DS . 'cacheable.php';
 
 class Memcache implements Cacheable {
 	
-	public function __construct() {
+	public function __construct($options = array()) {
 		
 	}
 	
