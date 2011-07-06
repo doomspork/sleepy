@@ -227,7 +227,7 @@ class ErrorMessage extends BaseMessage {
 class FatalMessage extends BaseMessage {
 	public function __construct($message = NULL, $code = 0) {
 		parent::__construct($message, $code);
-		die();
+		//die();
 	}
 }
 
