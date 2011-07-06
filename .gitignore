@@ -1,3 +1,7 @@
+# Sleepy Specifics #
+####################
+*.store
+
 # Compiled source #
 ###################
 *.com
