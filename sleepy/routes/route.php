@@ -27,11 +27,6 @@ class Route {
 			if($result && count($matches) > 1) {
 				$matches = array_slice($matches, 1);
 				$this->arguments = $matches;
-				/**foreach($matches as $index) {
-					$str = substr($uri, $index);
-					$this->arguments[] = (substr($str, -1) == '/') ? substr(strrev(strstr(strrev($str), strrev('/'))), 0, - strlen('/')) : $str;
-				}
-				*/
 			}
 			return $result;
 		}
