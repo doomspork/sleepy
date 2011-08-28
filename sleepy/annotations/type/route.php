@@ -16,7 +16,7 @@ class RouteAnnotation implements Annotation {
 			$url = self::process($args[1], $tokens);
 			self::register($args[0], $url, $metainfo['class']);
 		} else {
-			LumberJack::instance()->log('Route options missing from ' . $metainfo['class']['name'] . '.' . $metainfo['class']['method'], LumberJack::ERROR);
+			LumberJack::instance()->log('Route options missing from ' . $metainfo['class']['method'] . ' in file '. $metainfo['class']['path'], LumberJack::ERROR);
 		}
 	}
 	

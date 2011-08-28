@@ -33,15 +33,32 @@ class Route {
 		return FALSE;
 	}
 	
+	private function invokeClassMethod() {
+	  $clz = new ReflectionClass($this->class_name);
+		$method = $clz->getMethod($this->class_method);
+		$instance = $clz->newInstance();
+		if($this->arguments) {
+			$method->invokeArgs($instance, $this->arguments);
+		} else {
+			$method->invoke($instance);
+		}
+	}
+	
+	private function invokeFunction() {
+	  $func = new ReflectionFunction($this->class_method);
+	  if($this->arguments) {
+			$func->invokeArgs($this->arguments);
+		} else {
+			$func->invoke();
+		}
+	}
+	
 	public function invoke() {
 		if (@include_once($this->class_path)) {
-			$clz = new ReflectionClass($this->class_name);
-			$method = $clz->getMethod($this->class_method);
-			$instance = $clz->newInstance();
-			if($this->arguments) {
-				$method->invokeArgs($instance, $this->arguments);
+			if(isset($this->class_name) && strlen($this->class_name) > 0) {
+			  $this->invokeClassMethod();
 			} else {
-				$method->invoke($instance);
+			  $this->invokeFunction();
 			}
 		} else {
 			LumberJack::instance()->log($this->class_path . ' was requested but is missing.');

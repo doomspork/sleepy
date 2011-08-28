@@ -18,10 +18,14 @@ class AnnotationParser {
 		if(file_exists($file)) {
 			$annotations = array();
 			$code = file_get_contents($file);
+			$functions = $this->findDefinedFunctions($code);
 			$classes = $this->findDefinedClasses($code);
 			if(count($classes) > 0) {
 				require_once $file;
 				$this->handleClassParsing($classes);
+			} elseif(count($functions) > 0) {
+			  require_once $file;
+			  $this->handleFunctionParsing($functions);
 			}
 		} else {
 			LumberJack::instance()->log('Unable to parse file for annotations, file ' . $file . ' not found.', LumberJack::ERROR);
@@ -53,6 +57,15 @@ class AnnotationParser {
 		return $instance;
 	}
 	
+	private function findDefinedFunctions($code) {
+	  preg_match_all("/(?!function )(\w*)\([$\w, ]*\)/", $code, $matches);
+	  $functions = array();
+	  foreach($matches[1] as $match) {
+	    $functions[] = $match;
+	  }
+	  return $functions;
+	}
+	
 	private function findDefinedClasses($code) {
 		$tokens = array_filter(token_get_all($code), function($value) { return isset($value[1]) && strlen(trim($value[1])) > 1; });
 		$count = count($tokens);
@@ -68,13 +81,28 @@ class AnnotationParser {
 		return $classes;
 	}
 	
+	private function handleFunctionParsing($functions) {
+	  foreach($functions as $function) {
+      LumberJack::instance()->log('Parsing function ' . $function . ' for annotations.', LumberJack::DEBUG);
+	    $fun = new ReflectionFunction($function);
+	    $metainfo = array();
+	    $metainfo['class']['name'] = '';
+	    $metainfo['class']['method'] = $function;
+	    $metainfo['class']['path'] = $fun->getFileName();
+	    $this->processMethod($fun, $metainfo);
+	  }
+	}
+	
 	private function handleClassParsing($classes) {
 	  foreach($classes as $class) {
+	    LumberJack::instance()->log('Parsing class ' . $class . ' for annotations.', LumberJack::DEBUG);
 			$clz = new ReflectionClass($class);
 			$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC);
 			foreach($methods as $method) {
 				LumberJack::instance()->log('Parsing method ' . $method . ' for annotations.', LumberJack::DEBUG);
-				$metainfo = $this->processMethod($method);
+				$metainfo = array();
+    		$metainfo['class'] = $this->getClassInfo($method);
+        $this->processMethod($method, $metainfo);
 			}
 		}
 	}
@@ -87,10 +115,8 @@ class AnnotationParser {
 		return $info;
 	}
 	
-	private function processMethod(ReflectionFunctionAbstract $function) {
+	private function processMethod(ReflectionFunctionAbstract $function, $metainfo) {
 		$lines = explode("\n", $function->getDocComment());
-		$metainfo = array();
-		$metainfo['class'] = $this->getClassInfo($function);
 		foreach($lines as $line) {
 			$offset = strpos($line, '$');
 			if($offset == FALSE) {
