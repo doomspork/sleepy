@@ -24,19 +24,19 @@ class RouteRegistry {
 		foreach(array('GET', 'POST', 'DELETE', 'PUT') as $key) {
 			$this->routes[strtolower($key)] = array();
 		}
-		/**
-		$options = $this->getRouteOptions() || array();
- 		if($options == NULL) {
-			$options = array();
-		}
+		
+		$options = $this->getRouteOptions();
 		LumberJack::instance()->log('Instantiating cache instance', LumberJack::DEBUG);
 		$this->cache = new Cache('routes', $options);	
-		*/
 	}
 	
 	private function getRouteOptions() {
 		$settings = Config::instance();
-		return $settings->getOptions('routes');
+		$options = $settings->getOptions('routes');
+		if($options == NULL) {
+		  $options = array();
+		}
+		return $options;
 	}
 	
 	public function register(Route $route) {
