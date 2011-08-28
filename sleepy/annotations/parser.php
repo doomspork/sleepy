@@ -2,7 +2,6 @@
 
 class AnnotationParser {
 	
-	//private $classes = array();
 	private $types = array();
 	
 	/**
@@ -22,14 +21,7 @@ class AnnotationParser {
 			$classes = $this->findDefinedClasses($code);
 			if(count($classes) > 0) {
 				require_once $file;
-				foreach($classes as $class) {
-					$clz = new ReflectionClass($class);
-					$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC);
-					foreach($methods as $method) {
-						LumberJack::instance()->log('Parsing method ' . $method . ' for annotations.', LumberJack::DEBUG);
-						$metainfo = $this->processMethod($method);
-					}
-				}
+				$this->handleClassParsing($classes);
 			}
 		} else {
 			LumberJack::instance()->log('Unable to parse file for annotations, file ' . $file . ' not found.', LumberJack::ERROR);
@@ -62,18 +54,29 @@ class AnnotationParser {
 	}
 	
 	private function findDefinedClasses($code) {
-		$tokens = token_get_all($code);
+		$tokens = array_filter(token_get_all($code), function($value) { return isset($value[1]) && strlen(trim($value[1])) > 1; });
 		$count = count($tokens);
 		$classes = array();
-		for($i = 2; $i < $count; $i++) {
-			if($tokens[$i - 2][0] == T_CLASS
-				&& $tokens[$i - 1][0] == T_WHITESPACE
-				&& $tokens[$i][0] == T_STRING) {
-					$class_name = $tokens[$i][1];
-					$classes[] = $class_name;
+    $last = "";
+    foreach($tokens as $token) {
+      $current = $token[1];
+      if($last == "class" && is_string($current)) {
+        $classes[] = $current;
+      }
+      $last = $current;
+    }
+		return $classes;
+	}
+	
+	private function handleClassParsing($classes) {
+	  foreach($classes as $class) {
+			$clz = new ReflectionClass($class);
+			$methods = $clz->getMethods(ReflectionMethod::IS_PUBLIC);
+			foreach($methods as $method) {
+				LumberJack::instance()->log('Parsing method ' . $method . ' for annotations.', LumberJack::DEBUG);
+				$metainfo = $this->processMethod($method);
 			}
 		}
-		return $classes;
 	}
 	
 	private function getClassInfo(ReflectionMethod $method) {
@@ -84,10 +87,10 @@ class AnnotationParser {
 		return $info;
 	}
 	
-	private function processMethod(ReflectionMethod $method) {
-		$lines = explode("\n", $method->getDocComment());
+	private function processMethod(ReflectionFunctionAbstract $function) {
+		$lines = explode("\n", $function->getDocComment());
 		$metainfo = array();
-		$metainfo['class'] = $this->getClassInfo($method);
+		$metainfo['class'] = $this->getClassInfo($function);
 		foreach($lines as $line) {
 			$offset = strpos($line, '$');
 			if($offset == FALSE) {
@@ -95,20 +98,13 @@ class AnnotationParser {
 			}
 			$count = preg_match('/^(\w+)(?:\[(.+)\])?$/i', substr($line, $offset + 1), $matches);
 			if($count == 0) {
-				LumberJack::instance()->log('Ill formed annotation found in ' . $method->class . '.' . $method->name . '.', LumberJack::WARNING);
+				LumberJack::instance()->log('Ill formed annotation found in ' . $function->class . '.' . $function->name . '.', LumberJack::WARNING);
 				continue;
 			}
 			$name = $matches[1];
 			if($matches > 1) {
-				$tokens = explode(',', $matches[2]);
+			  $tokens = preg_split('/, /', $matches[2]);
 				array_walk($tokens, create_function('&$i', '$i = trim($i);'));
-				/**
-				foreach($tokens as $token) {
-					$parts = explode('>', $token);
-					$arg = (count($parts) > 1) ? array($parts[0], $parts[1]) : $parts[0];
-					$metainfo['args'][] = $arg;
-				}
-				*/
 				$metainfo['args'] = $tokens;
 			}
 			if(empty($this->types) || in_array($name, $this->types)) {
