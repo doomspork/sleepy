@@ -1,12 +1,40 @@
-# sleepy 
+# Sleepy 
 ### "Helping you get a RESTful sleep"  
 _It ain't easy - being cheesy_
 
 ## What is it really?
 
-Sleepy is a RESTful experimental framework, the uniqueness comes in the form of annotations.
-Relying on a specified format within the method doc comments sleepy is able to parse, locate,
-and instantiate a wide range of annotations.  Annotations themselves are plugins allowing third-party
-developers the ability to implement new and exciting functionality whenever!
+Sleepy is an experimental RESTful framework, the uniqueness comes in the form of annotations.
+Relying on a specified format in the doc comments sleepy is able to parse, locate, and instantiate 
+a wide range of annotations. Annotations themselves are plugins allowing third-party developers the 
+ability to implement new and exciting functionality whenever!
+
+### Sleepy is simple
+
+```php
+class Nue {
+  /**
+  * $route[GET, /]
+  */
+  public function index() {
+    echo 'Index!';
+  }
+  
+  /**
+  * $route[GET, /slug/:slug, :slug > [0-9a-z]*]
+  */
+  public function slug($slug) {
+    echo 'SlugValue: ' . $slug . '</br>';
+  }
+  
+  /**
+  * $route[GET, /params/:param/:paramjam, :param > [a-zA-Z]{2,4}, :paramjam > [0-9]*]
+  */
+  public function params($param, $paramjam) {
+    echo 'ParamValue: ' . $param . '</br>';
+    echo 'ParamJamValue: ' . $paramjam . '</br>';
+  }
+}
+```
 
 
