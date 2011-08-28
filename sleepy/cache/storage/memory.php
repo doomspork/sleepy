@@ -49,7 +49,7 @@ class Memory implements Cacheable {
 		}
 	}
 	
-	public function isSupported() {
+	public static function isSupported($optionss) {
 		return TRUE;
 	}
 	

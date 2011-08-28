@@ -4,30 +4,38 @@ require_once LIB_DIR . DS . 'cache' . DS . 'cacheable.php';
 
 class File implements Cacheable {
 	
+	private $identifier;
 	private $lifetime;
 	private $path;
 	private $options;
 	
 	public function __construct($options = array()) {
+		if(!isset($options['identifier'])) {
+			Lumberjack::instance()->log('Caching cannot be instantiated without a identifier.', LumberJack::FATAL);
+		}
 		if(!isset($options['location'])) {
 			Lumberjack::instance()->log('No location set in configuration for file caching.', LumberJack::FATAL);
 		}
-		//$this->path = $options['location'];
+		$this->identifier = $options['identifier'];
+		$this->path = $options['location'];
 		$this->lifetime = (isset($options['lifetime'])) ? $options['lifetime'] : 60; //lifetime is in minutes, milliseconds is a pain.
-		$this->policy = explode('|',isset($options['policy']) ? $options['policy'] : 'STORE'); //GET|STORE|NONE
+		$this->policy = explode('|',(isset($options['policy']) ? $options['policy'] : 'STORE')); //GET|STORE|NONE
 		array_walk($this->policy, create_function('&$i', '$i = strtoupper(trim($i));')); 
 		$this->options = $options;
+		$this->setup();
 	}
 	
-	private function setup($parent, $identifier) {
-		$dir = $parent . DS . $identifier . '$cache';
+	private function setup() {
+		Lumberjack::instance()->log('Preparing setup for cache ' . $this->identifier, LumberJack::DEBUG);
+		$dir = $this->path . DS . $this->identifier . '$cache';
 		if(!is_dir($dir)) {
-			if(!mkdir($dir)) {
+			$chm = chmod($this->path, 0777);
+			if(!$chm && !mkdir($dir, 0777)) {
 				Lumberjack::instance()->log('Unable to create folder for cache storage at ' . $dir, LumberJack::FATAL);	
 			}
 		}
 		
-		$this->path = $dir . DS . md5($identifier);
+		$this->path = $dir . DS . md5($this->identifier);
 		if(!(touch($this->path . '.cache') && touch($this->path . '.expiration'))) {
 			Lumberjack::instance()->log('An error occurred when creating cache files in directory ' . $dir, LumberJack::FATAL);	
 		}
@@ -70,16 +78,16 @@ class File implements Cacheable {
 	public function gc() {
 		if($this->isExpired()) {
 			foreach(array($this->getCachePath(), $this->getExpirationPath()) as $path) {
-				@chmod($file, 0777);
-				if (!@unlink($file)) {
+				@chmod($path, 0777);
+				if (!@unlink($path)) {
 					Lumberjack::instance()->log('Unable to perform garbage collection on file ' . $file, LumberJack::ERROR);
 				}
 			}
 		}
 	}
 	
-	public function isSupported() {
-		return is_writable($this->options['location']);
+	public static function isSupported($options) {
+		return is_writable($options['location']);
 	}
 	
 	private function isExpired() {

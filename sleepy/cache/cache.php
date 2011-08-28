@@ -10,31 +10,38 @@ class Cache {
 	//Value validators
 	private $validators;
 	
-	public function __construct($identifier = '', $options = array()) {
-		$options['indentifer'] = $identifier;
+	public function __construct($identifier = '', $options) {
+	  if(!is_array($options)) {
+	    $options = array();
+	  }
+		$options['identifier'] = $identifier;
 		$options['location'] = (isset($options['location']) ? $options['location'] : dirname(__FILE__));
 		$type = isset($options['storage']) ? $options['storage'] : 'file';
-		
-		$stores = $this->getStores($options);
-		if(!in_array($type, $stores)) {
+		$this->storage = $this->getStore($type, $options);
+		if(is_null($this->storage)) {
 			Lumberjack::instance()->log('Cache storage type ' . $type . ' unsupported.', LumberJack::FATAL);
 		}
-		//TODO: Load default options then apply user supplied options.
-		$this->storage = $this->getInstance($type, $options);
 		$this->validators = array();
 		$this->gc();
 	}
 	
-	private function &getInstance($type = 'file', $options = array()) {
-		$filename = dirname(__FILE__) . DS . 'storage' . DS . $type . '.php';
-		if(!class_exists($type)) {
-			require_once($filename);
-		}
-		
+	private function getInstance($type, $options = array()) {
 		$clz = new ReflectionClass($type);
-		$instance = $clz->newInstanceArgs($options);
+		$instance = $clz->newInstanceArgs(array($options));
 		return $instance;
 	}
+	
+  private function getStore($type, $options = array()) {
+    $filename = dirname(__FILE__) . DS . 'storage' . DS . strtolower($type) . '.php';
+    if(file_exists($filename)) {
+      require_once($filename);
+			$class = trim(substr($filename, strripos($filename, '/') + 1, -4));
+			if($class::isSupported($options)) {
+				return $this->getInstance($type, $options);
+			}
+    }
+    return NULL;
+  }
 	
 	//Garbage Collection & Expiration
 	public function gc() {
@@ -74,21 +81,8 @@ class Cache {
 	}
 	
 	public function exists($id) {
-		return (FALSE == $this->get($id));
+		return (NULL == $this->get($id));
 	}
-	
-	public function getStores($options = array()) {
-		$stores = array();
-		foreach (glob(dirname(__FILE__) . DS . 'storage' . DS . '*.php') as $filename) {
-			$class = trim(substr($filename, strripos($filename, '/') + 1, -4));
-			$instance = $this->getInstance($class, $options);
-			if(($instance instanceof Cacheable) && $instance->isSupported()) {
-				$stores[] = $class;
-			}
-		}
-		return $stores;
-	}
-	
 }
 
 ?>

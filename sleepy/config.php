@@ -28,11 +28,8 @@ class Config {
 			Lumberjack::instance()->log('Unable to load settings from file ' . $file, LumberJack::FATAL);	
 		}
 		
-		while ($option = fscanf($handle, "%s=%s\n")) { //"%[a-zA-Z].%[a-zA-Z]=%s\n"
-		    list ($option, $value) = $option;
-				$option = explode('.', $option);
-				$group = $option[0];
-				$option = substr($option[1], 0, -1);
+		while ($setting = fscanf($handle, "%[a-zA-Z].%[a-zA-Z]=%s\n")) { //"%s=%s\n")) { //"%[a-zA-Z].%[a-zA-Z]=%s\n"
+		    list ($group, $option, $value) = $setting;
 				if(isset($this->options[$group][$option])) {
 					switch($conflict) {
 						case 'replace':
@@ -59,7 +56,7 @@ class Config {
 	* $settings->getOptions('cache', 'location');
 	*/
 	public function getOptions($group, $option = NULL) {
-		$group = is_null($option) ? explode('.', $group) : array($group, $option); 
+		$group = is_null($option) ? explode('.', $group) : array($group, $option);
 		$settings = NULL;
 		if(array_key_exists($group[0], $this->options)) {
 			$settings = $this->options[$group[0]];

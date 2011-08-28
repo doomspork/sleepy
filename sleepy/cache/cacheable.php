@@ -4,7 +4,7 @@ interface Cacheable {
 	public function store($id, $value);
 	public function get($id);
 	public function gc();
-	public function isSupported();
+	public static function isSupported($options);
 }
 
 
