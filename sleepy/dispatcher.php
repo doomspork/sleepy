@@ -25,8 +25,8 @@ final class Dispatcher {
 		$route = self::$registry->get($httpMethod, $url);
 
 		if($route == NULL) {
-			LumberJack::instance()->log('\'' . $this->getUrl() . '\' was not found!', LumberJack::FATAL);
 			header($_SERVER["SERVER_PROTOCOL"] . '404 Not Found');
+			LumberJack::instance()->log('\'' . $this->getUrl() . '\' was not found!', LumberJack::FATAL);
 			return;
 		}
 		$this->setRoute($route);
