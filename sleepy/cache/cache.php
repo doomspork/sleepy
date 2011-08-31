@@ -18,11 +18,10 @@ class Cache {
 		$options['location'] = (isset($options['location']) ? $options['location'] : dirname(__FILE__));
 		$type = isset($options['storage']) ? $options['storage'] : 'file';
 		$this->storage = $this->getStore($type, $options);
-		if(is_null($this->storage)) {
-			Lumberjack::instance()->log('Cache storage type ' . $type . ' unsupported.', LumberJack::FATAL);
-		}
-		$this->validators = array();
-		$this->gc();
+		if(!is_null($this->storage)) {
+		  $this->validators = array();
+		  $this->gc();
+	  }
 	}
 	
 	private function getInstance($type, $options = array()) {
@@ -36,8 +35,17 @@ class Cache {
     if(file_exists($filename)) {
       require_once($filename);
 			$class = trim(substr($filename, strripos($filename, '/') + 1, -4));
-			if($class::isSupported($options)) {
-				return $this->getInstance($type, $options);
+			$errors = array();
+			if($class::isSupported($options, $errors)) {
+				$clz = $this->getInstance($type, $options);
+				if($clz instanceof Cacheable) {
+				  return $clz;
+				}
+			} else {
+			  foreach($errors as $error) {
+			    Lumberjack::instance()->log($error, LumberJack::ERROR);
+		    }
+		    Lumberjack::instance()->log("Cache storage type: " . $type . " is not supported.", LumberJack::ERROR);
 			}
     }
     return NULL;

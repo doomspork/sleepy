@@ -86,8 +86,12 @@ class File implements Cacheable {
 		}
 	}
 	
-	public static function isSupported($options) {
-		return is_writable($options['location']);
+	public static function isSupported($options, &$errors) {
+		$writeable = is_writable($options['location']);
+		if(!$writeable) {
+		  $errors[] = "The caching location: " . $options['location'] . " is not writeable.";
+		}
+		return $writeable;
 	}
 	
 	private function isExpired() {
