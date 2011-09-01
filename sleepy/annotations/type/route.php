@@ -23,7 +23,7 @@ class RouteAnnotation implements Annotation {
 	private static function process($pattern, $tokens = array()) {
 		$result = $pattern;
 		foreach($tokens as $token) {
-			$token = explode('>', $token);
+			$token = explode('=', $token);
 			$index = strpos($pattern, trim($token[0]));
 			if($index == FALSE) {
 				LumberJack::instance()->log('Token ' . trim($token[0]) . ' not found when processing pattern ' . $pattern, LumberJack::WARNING);

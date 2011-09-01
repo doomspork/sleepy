@@ -4,6 +4,21 @@ class AnnotationParser {
 	
 	private $types = array();
 	
+	private static $globalIgnoreList = array(
+    'access'=> true, 'author'=> true, 'copyright'=> true, 'deprecated'=> true,
+    'example'=> true, 'ignore'=> true, 'internal'=> true, 'link'=> true, 'see'=> true,
+    'since'=> true, 'tutorial'=> true, 'version'=> true, 'package'=> true,
+    'subpackage'=> true, 'name'=> true, 'global'=> true, 'param'=> true,
+    'return'=> true, 'staticvar'=> true, 'category'=> true, 'staticVar'=> true,
+    'static'=> true, 'var'=> true, 'throws'=> true, 'inheritdoc'=> true,
+    'inheritDoc'=> true, 'license'=> true, 'todo'=> true, 'deprecated'=> true,
+    'deprec'=> true, 'author'=> true, 'property' => true, 'method' => true,
+    'abstract'=> true, 'exception'=> true, 'magic' => true, 'api' => true,
+    'final'=> true, 'filesource'=> true, 'throw' => true, 'uses' => true,
+    'usedby'=> true, 'private' => true, 'Annotation' => true, 'override' => true,
+    'Required' => true,
+    );
+	
 	/**
 	* @type (optional) array of annotation types to process, empty array results in all annotations processing
 	*/
@@ -118,16 +133,18 @@ class AnnotationParser {
 	private function processMethod(ReflectionFunctionAbstract $function, $metainfo) {
 		$lines = explode("\n", $function->getDocComment());
 		foreach($lines as $line) {
-			$offset = strpos($line, '$');
+			$offset = strpos($line, '@');
 			if($offset == FALSE) {
 				continue;
 			}
-			$count = preg_match('/^(\w+)(?:\[(.+)\])?$/i', substr($line, $offset + 1), $matches);
-			if($count == 0) {
+			$count = preg_match('/^(\w+)(?:\((.+)\))?$/i', substr($line, $offset + 1), $matches);
+			$name = $matches[1];
+			if(in_array($name, self::$globalIgnoreList)) {
+			  continue;
+			} else if($count == 0) {
 				LumberJack::instance()->log('Ill formed annotation found in ' . $function->class . '.' . $function->name . '.', LumberJack::WARNING);
 				continue;
 			}
-			$name = $matches[1];
 			if($matches > 1) {
 			  $tokens = preg_split('/, /', $matches[2]);
 				array_walk($tokens, create_function('&$i', '$i = trim($i);'));
