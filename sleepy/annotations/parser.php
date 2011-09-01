@@ -85,10 +85,10 @@ class AnnotationParser {
 		$tokens = array_filter(token_get_all($code), function($value) { return isset($value[1]) && strlen(trim($value[1])) > 1; });
 		$count = count($tokens);
 		$classes = array();
-    $last = "";
+    $last = '';
     foreach($tokens as $token) {
       $current = $token[1];
-      if($last == "class" && is_string($current)) {
+      if($last == 'class' && is_string($current)) {
         $classes[] = $current;
       }
       $last = $current;
@@ -131,23 +131,27 @@ class AnnotationParser {
 	}
 	
 	private function processMethod(ReflectionFunctionAbstract $function, $metainfo) {
-		$lines = explode("\n", $function->getDocComment());
+		$lines = explode('\n', $function->getDocComment());
 		foreach($lines as $line) {
-			$offset = strpos($line, '@');
-			if($offset == FALSE) {
-				continue;
-			}
-			$count = preg_match('/^(\w+)(?:\((.+)\))?$/i', substr($line, $offset + 1), $matches);
+			$count = preg_match('/@(\w+)(?:\((.+)\))?/i', $line, $matches);
 			$name = $matches[1];
-			if(in_array($name, self::$globalIgnoreList)) {
+			if(isset(self::$globalIgnoreList[$name])) {
 			  continue;
 			} else if($count == 0) {
 				LumberJack::instance()->log('Ill formed annotation found in ' . $function->class . '.' . $function->name . '.', LumberJack::WARNING);
 				continue;
 			}
-			if($matches > 1) {
+			if(count($matches) > 1) {
 			  $tokens = preg_split('/, /', $matches[2]);
-				array_walk($tokens, create_function('&$i', '$i = trim($i);'));
+			  $count = count($tokens);
+        for($i = 0 ; $i < $count ; $i++) {
+          $key = $i;
+          $token = explode('=', $tokens[$key]);
+          if(count($token) == 2) {
+            $key = array_shift($token);
+          }
+          $tokens[$key] = $token[0];
+        }
 				$metainfo['args'] = $tokens;
 			}
 			if(empty($this->types) || in_array($name, $this->types)) {
