@@ -9,26 +9,30 @@ Relying on a specified format in the doc comments sleepy is able to parse, locat
 a wide range of annotations. Annotations themselves are plugins allowing third-party developers the 
 ability to implement new and exciting functionality whenever!
 
-### Sleepy is simple
+## Sleepy is simple
+
+Annotations in sleepy can be placed on functions or methods of a class; the choice is yours.  
+
+#### Class
 
 ```php
 class Nue {
   /**
-  * $route[GET, /]
+  * @Route(GET, /)
   */
   public function index() {
     echo 'Index!';
   }
   
   /**
-  * $route[GET, /slug/:slug, :slug > [0-9a-z]*]
+  * @Route(GET, /slug/:slug, :slug > [0-9a-z]*)
   */
   public function slug($slug) {
     echo 'SlugValue: ' . $slug . '</br>';
   }
   
   /**
-  * $route[GET, /params/:param/:paramjam, :param > [a-zA-Z]{2,4}, :paramjam > [0-9]*]
+  * @Route(GET, /params/:param/:paramjam, :param > [a-zA-Z]{2,4}, :paramjam > [0-9]*)
   */
   public function params($param, $paramjam) {
     echo 'ParamValue: ' . $param . '</br>';
@@ -37,4 +41,15 @@ class Nue {
 }
 ```
 
+#### Function
 
+```
+/**
+* @Route(POST, /login)
+*/
+function login() {
+  return $_POST['password'] = 'password';
+}
+```
+
+## Annotations
