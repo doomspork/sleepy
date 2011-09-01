@@ -6,8 +6,8 @@ class RouteAnnotation implements Annotation {
 	
 	/**
 	* Acceptable Route Annotations
-	* $route[GET, /url/here]
-	* $route[POST, /url/:token, :token > pattern]
+	* @route(GET, /url/here)
+	* @route(POST, /url/:token, :token > pattern)
 	*/ 
 	public function __construct($metainfo =  array()) {
 		$args = $metainfo['args'];
